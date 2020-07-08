@@ -1,0 +1,133 @@
+---
+title: "FitbandHAR"
+author: "Ramvyasa"
+date: "7/8/2020"
+output: html_document
+---
+# Synopsis
+Using data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants
+who were asked to perform barbell lifts correctly and incorrectly in 5 different ways, 
+we will predict the manner in which they did the exercise.
+
+# Packages used
+```{r}
+library(caret)
+
+```
+
+# Getting the data
+```{r}
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "training.csv", method = "curl")
+train <- read.csv("training.csv")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", "testing.csv", method = "curl")
+test <- read.csv("testing.csv")
+```
+
+# Exploring the data
+```{r}
+differing <- match(FALSE,(names(test) == names(train)))
+names(train)[differing]
+names(test)[differing]
+```
+
+We get to kniw the differing column from the two data sets are classe and problem id from train and test data sets respectively.
+
+# Removing NA values
+
+We can see there are some columns filled with NA values alone and some columns with
+some NA values,we will remove the ones with NA values as they add no significant
+details in our model.
+
+```{r}
+keepCol <- (colSums(is.na(train)) < nrow(train)) & (colSums(is.na(test)) < nrow(test))
+test <- test[,keepCol]
+train <- train[,keepCol]
+dim(train)
+dim(test)
+```
+
+Lets have look at our final data test before modeling.
+
+```{r}
+summary(train)
+```
+
+# Cross Validation
+
+We will do 10-fold cross validation .
+
+```{r}
+control <- trainControl(method = "cv",number = 10)
+metric <- "Accuracy"
+```
+
+# Building models
+
+We will decide any one of the following models based on the ones which gives high
+accuracy results.
+* Recursive Partitioning (Trees)
+* Random Forests
+* Linear Discriminate Analysis
+* k-Nearest neighbors(Knn)
+
+## Recursive partitioning
+
+```{r}
+set.seed(7)
+fitcart <- train(classe~., data=train, method="rpart", metric=metric, trControl=control)
+```
+
+## Random forest
+
+```{r}
+set.seed(7)
+fit.rf <- train(classe~., data=train, method="rf", metric=metric, trControl=control)
+```
+
+## Linear discriminate analysis
+
+```{r}
+set.seed(7)
+fitlda <- train(classe~.,data=train,method="lda",metric=metric,trControl=control)
+```
+
+## k-Nearest neighbors
+
+```{r}
+set.seed(7)
+fitknn <- train(classe~., data=train, method="knn", metric=metric, trControl=control)
+```
+
+# Select the best model
+
+Now lest compare the accuracy between the 4 models.
+
+```{r}
+results <- resamples(list(lda=fitlda, tree=fitcart, knn=fitknn,rf=fit.rf))
+summary(results)
+dotplot(results)
+```
+
+We can see that LDA is slightely more accurate than RF.So we will go with Linear
+discriminative analysis.
+
+The results for just the LDA model can be summarized.
+
+```{r}
+print(fitlda)
+```
+
+This gives a nice summary of what was used to train the model and accuracy achieved
+is 99.94% . 
+
+# Predictions
+
+Now lets run the LDA in the test data set.
+
+```{r}
+predictions <- predict(fitlda,test)
+predictions
+```
+
+This is the outcomes after the predictions performed by LDA.
+
